@@ -26,9 +26,21 @@ async function run() {
     await client.connect();
 
     const classesCollection = client.db("melodyDB").collection("classes");
+    const selectedClassesCollection = client
+      .db("melodyDB")
+      .collection("selectedClasses");
 
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
+      res.send(result);
+    });
+
+    // selected Classes Collection
+
+    app.post("/selectedClasses", async (req, res) => {
+      const selectedClasses = req.body;
+      console.log(selectedClasses);
+      const result = await selectedClassesCollection.insertOne(selectedClasses);
       res.send(result);
     });
 
