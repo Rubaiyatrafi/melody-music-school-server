@@ -25,10 +25,32 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
+    const usersCollection = client.db("melodyDB").collection("users");
     const classesCollection = client.db("melodyDB").collection("classes");
     const selectedClassesCollection = client
       .db("melodyDB")
       .collection("selectedClasses");
+
+    // Users Collection
+
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const query = { email: user.email };
+      const existingUser = await usersCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: "user already exist" });
+      }
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // All data Collection
 
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
@@ -50,7 +72,7 @@ async function run() {
 
     app.post("/selectedClasses", async (req, res) => {
       const selectedClasses = req.body;
-      console.log(selectedClasses);
+      // console.log(selectedClasses);
       const result = await selectedClassesCollection.insertOne(selectedClasses);
       res.send(result);
     });
