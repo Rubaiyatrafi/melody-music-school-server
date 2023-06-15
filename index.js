@@ -163,6 +163,12 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/classes", verifyJWT, verifyInstructors, async (req, res) => {
+      const newClass = req.body;
+      const result = await classesCollection.insertOne(newClass);
+      res.send(result);
+    });
+
     // selected Classes Collection
 
     app.get("/selectedClasses", verifyJWT, async (req, res) => {
@@ -182,6 +188,35 @@ async function run() {
       const result = await selectedClassesCollection.find(query).toArray();
       res.send(result);
     });
+    app.get("/myclasses", verifyJWT, verifyInstructors, async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        res.send([]);
+      }
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden access" });
+      }
+
+      const query = { email: email };
+      const result = await classesCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete(
+      "/myclasses/:id",
+      verifyJWT,
+      verifyInstructors,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await classesCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     app.post("/selectedClasses", async (req, res) => {
       const selectedClasses = req.body;
