@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
@@ -50,6 +51,7 @@ async function run() {
     const selectedClassesCollection = client
       .db("melodyDB")
       .collection("selectedClasses");
+    const paymentCollection = client.db("melodyDB").collection("payments");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -123,6 +125,19 @@ async function run() {
       };
       const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
+    });
+
+    app.get("/admin-stats", verifyJWT, verifyAdmin, async (req, res) => {
+      const users = await usersCollection.estimatedDocumentCount();
+      const classes = await classesCollection.estimatedDocumentCount();
+      const selectedClasses =
+        await selectedClassesCollection.estimatedDocumentCount();
+
+      res.send({
+        users,
+        classes,
+        selectedClasses,
+      });
     });
 
     app.get("/users/instructors/:email", verifyJWT, async (req, res) => {
@@ -230,6 +245,32 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await selectedClassesCollection.deleteOne(query);
       res.send(result);
+    });
+
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
+      // console.log(price, amount);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const payment = req.body;
+      const insertResult = await paymentCollection.insertOne(payment);
+
+      const query = {
+        _id: { $in: payment.selectedClasses.map((id) => new ObjectId(id)) },
+      };
+      const deleteResult = await selectedClassesCollection.deleteMany(query);
+      res.send(insertResult, deleteResult);
     });
 
     // Send a ping to confirm a successful connection
